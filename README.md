@@ -91,13 +91,38 @@ only the best-RMS view goes into the camera (camera stores one rvec/tvec pair).
 ## Development
 
 ```bash
-uv run --python 3.11 --extra dev pytest -q    # 5 tests
+uv run --python 3.11 --extra dev pytest -q    # 6 tests
 ```
 
 Tests cover: synthetic `projectPoints` views recovering known `K` (<1px), YAML roundtrip, pattern
-detection on rendered boards, OpenCV↔Baumer dist coeff ordering, and a mocked-feature test asserting
-the upload touches every `boCalibrationData` feature in the §11.19 order.
+detection on rendered boards (checkerboard + Charuco), OpenCV↔Baumer dist coeff ordering, and a
+mocked-feature test asserting the upload touches every `boCalibrationData` feature in the §11.19
+order.
 
 No camera required for tests or `calibrate`; `capture/upload/read` degrade to a clear install hint if
 neoapi is missing.
+
+## Standalone builds & releases
+
+`scripts/build.py` produces a self-contained executable bundle (PyInstaller `--onedir`, no Python
+required on target):
+
+```bash
+uv run python scripts/build.py            # version from pyproject
+BUILD_VERSION=v0.1.0 uv run python scripts/build.py   # or from git tag
+```
+
+Output: `dist/baumer-calib/` plus `dist/baumer-calib-<version>-<os>-<arch>.tar.gz|.zip` and a
+`.sha256` sidecar. The script auto-detects the platform, installs the matching vendor neoAPI wheel
+(Linux/Windows; macOS builds offline-only since Baumer ships no macOS wheel), runs a smoke test on
+the produced binary, and fails loudly if anything is off.
+
+CI: `.github/workflows/build.yml` runs tests + builds on **ubuntu-22.04, windows-latest,
+macos-latest** for every push/PR, and on a `v*` tag additionally creates a **GitHub Release** with
+all three archives + checksums and install instructions:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 
