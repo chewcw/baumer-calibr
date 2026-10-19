@@ -54,7 +54,7 @@ baumer-calib verify calib.yaml --source shots     # offline, writes undistorted_
 ```
 
 `--square` / `--focal` are in **mm**, `--aperture` in **degrees**, `--exposure` in **µs**.
-`--serial` selects a specific camera when several are connected; `--no-userset` skips `UserSetSave`.
+`--device` selects a specific camera when several are connected; accepts a serial number or an IP address (GigE); `--no-userset` skips `UserSetSave`.
 
 ## What gets written (§11.19 mapping)
 

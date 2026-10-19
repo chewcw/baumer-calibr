@@ -43,14 +43,14 @@ def _get_neoapi():
 @dataclass
 class NeoCamera:
     cam: object = None
-    serial: str = ""
+    device: str = ""
 
-    def connect(self, serial: str = "") -> "NeoCamera":
+    def connect(self, device: str = "") -> "NeoCamera":
         neoapi = _get_neoapi()
-        self.serial = serial
+        self.device = device
         self.cam = neoapi.Cam()
-        if serial:
-            self.cam.Connect(serial)
+        if device:
+            self.cam.Connect(device)
         else:
             self.cam.Connect()
         return self

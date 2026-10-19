@@ -17,7 +17,7 @@ def _cmd_capture(a) -> int:
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     psize = parse_pattern_size(a.pattern_size)
-    cam = NeoCamera().connect(a.serial or "")
+    cam = NeoCamera().connect(a.device or "")
     try:
         cam.setup_capture(a.pixel_format, a.exposure)
         saved = 0
@@ -113,7 +113,7 @@ def _cmd_upload(a) -> int:
         res.focal_length_mm = a.focal
     if a.aperture:
         res.angular_aperture_deg = a.aperture
-    cam = NeoCamera().connect(a.serial or "")
+    cam = NeoCamera().connect(a.device or "")
     try:
         cam.upload(
             res,
@@ -130,7 +130,7 @@ def _cmd_upload(a) -> int:
 def _cmd_read(a) -> int:
     from baumer_calibration.neo_camera import NeoCamera
 
-    cam = NeoCamera().connect(a.serial or "")
+    cam = NeoCamera().connect(a.device or "")
     try:
         print("Camera Matrix:\n", cam.read_matrix("Camera Matrix"))
         print("New Camera Matrix:\n", cam.read_matrix("New Camera Matrix"))
@@ -156,7 +156,7 @@ def _cmd_verify(a) -> int:
     dist = np.asarray(res.dist_coeffs, float)
     newK = np.asarray(res.new_camera_matrix, float)
     if a.source == "camera":
-        cam = NeoCamera().connect(a.serial or "")
+        cam = NeoCamera().connect(a.device or "")
         try:
             cam.setup_capture()
             while True:
@@ -211,7 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--square", type=float, default=25.0)
     c.add_argument("--marker", type=float, default=0.0)
     c.add_argument("--aruco-dict", default="DICT_5X5_100")
-    c.add_argument("--serial", default="")
+    c.add_argument("--device", default="")
     c.add_argument("--pixel-format", default="Mono8")
     c.add_argument("--exposure", type=float, default=10000.0)
     c.set_defaults(func=_cmd_capture)
@@ -233,20 +233,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     c = sub.add_parser("upload", help="write yaml -> camera boCalibrationData")
     c.add_argument("calib")
-    c.add_argument("--serial", default="")
+    c.add_argument("--device", default="")
     c.add_argument("--focal", type=float, default=0.0)
     c.add_argument("--aperture", type=float, default=0.0)
     c.add_argument("--no-userset", action="store_true")
     c.set_defaults(func=_cmd_upload)
 
     c = sub.add_parser("read", help="read back boCalibrationData")
-    c.add_argument("--serial", default="")
+    c.add_argument("--device", default="")
     c.set_defaults(func=_cmd_read)
 
     c = sub.add_parser("verify", help="undistort preview from camera or folder")
     c.add_argument("calib")
     c.add_argument("--source", default="camera")
-    c.add_argument("--serial", default="")
+    c.add_argument("--device", default="")
     c.set_defaults(func=_cmd_verify)
 
     c = sub.add_parser("make-board", help="render printable pattern PNG")
