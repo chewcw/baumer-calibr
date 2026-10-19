@@ -1,0 +1,92 @@
+name: build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install deps + run tests
+        run: |
+          uv sync --extra dev
+          uv run pytest -q
+
+      - name: Build executable bundle
+        env:
+          BUILD_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: uv run python scripts/build.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baumer-calib-${{ matrix.os }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: baumer-calib-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: List assets
+        run: ls -lh release-assets/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: release-assets/*
+          body: |
+            ## baumer-calib standalone builds
+
+            Per-OS PyInstaller bundles (unzip/tar and run, no Python needed).
+            Verify downloads with the `.sha256` sidecars
+            (`sha256sum -c *.sha256` on Linux/macOS, `Get-FileHash` on Windows).
+
+            | Asset | Includes Baumer neoAPI | Camera commands |
+            |---|---|---|
+            | `linux-x86_64` | yes | full (capture/calibrate/upload/read/verify) |
+            | `windows-x86_64` | yes | full (install Baumer USB/GigE driver first, see below) |
+            | `macos-arm64` | no (Baumer ships no macOS wheel) | offline-only: `calibrate` / `make-board` / folder `verify` |
+
+            ### First run on Windows
+            1. Install the Baumer driver from `vendor/Baumer_neoAPI_1.6.0_win_x86_64_python.zip`
+               (`drivers/USB/Windows10_11/usbdriver-1_2_22-win-x86_64.msi`;
+               optionally the GigE filter driver in `drivers/filterdriver/`).
+            2. Unzip the asset and run `baumer-calib.exe --help`.
+
+            ### Typical workflow
+            ```
+            baumer-calib make-board --pattern checkerboard --nx 9 --ny 6 --out board.png
+            baumer-calib capture --out shots -n 20
+            baumer-calib calibrate shots --pattern-size 9x6 --square 25 --focal 16 --aperture 45
+            baumer-calib upload calib.yaml
+            baumer-calib read
+            ```
