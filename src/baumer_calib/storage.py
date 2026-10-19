@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from baumer_calibration.models import CalibrationResult
+from baumer_calib.models import CalibrationResult
 
 
 def save_yaml(res: CalibrationResult, path: str | Path) -> Path:

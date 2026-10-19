@@ -9,7 +9,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from baumer_calibration.models import CalibrationResult
+from baumer_calib.models import CalibrationResult
 
 
 def calibrate(

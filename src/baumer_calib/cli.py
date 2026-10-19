@@ -11,8 +11,8 @@ import numpy as np
 
 
 def _cmd_capture(a) -> int:
-    from baumer_calibration.neo_camera import NeoCamera
-    from baumer_calibration.patterns import detect, parse_pattern_size
+    from baumer_calib.neo_camera import NeoCamera
+    from baumer_calib.patterns import detect, parse_pattern_size
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -73,9 +73,9 @@ def _iter_images(folder: Path):
 
 
 def _cmd_calibrate(a) -> int:
-    from baumer_calibration.patterns import detect, parse_pattern_size
-    from baumer_calibration.calibrator import calibrate
-    from baumer_calibration.storage import save_yaml
+    from baumer_calib.patterns import detect, parse_pattern_size
+    from baumer_calib.calibrator import calibrate
+    from baumer_calib.storage import save_yaml
 
     folder = Path(a.images)
     psize = parse_pattern_size(a.pattern_size)
@@ -105,8 +105,8 @@ def _cmd_calibrate(a) -> int:
 
 
 def _cmd_upload(a) -> int:
-    from baumer_calibration.neo_camera import NeoCamera
-    from baumer_calibration.storage import load_yaml
+    from baumer_calib.neo_camera import NeoCamera
+    from baumer_calib.storage import load_yaml
 
     res = load_yaml(a.calib)
     if a.focal:
@@ -128,7 +128,7 @@ def _cmd_upload(a) -> int:
 
 
 def _cmd_read(a) -> int:
-    from baumer_calibration.neo_camera import NeoCamera
+    from baumer_calib.neo_camera import NeoCamera
 
     cam = NeoCamera().connect(a.device or "")
     try:
@@ -148,8 +148,8 @@ def _cmd_read(a) -> int:
 
 
 def _cmd_verify(a) -> int:
-    from baumer_calibration.neo_camera import NeoCamera
-    from baumer_calibration.storage import load_yaml
+    from baumer_calib.neo_camera import NeoCamera
+    from baumer_calib.storage import load_yaml
 
     res = load_yaml(a.calib)
     K = np.asarray(res.camera_matrix, float)
@@ -180,7 +180,7 @@ def _cmd_verify(a) -> int:
 
 
 def _cmd_board(a) -> int:
-    from baumer_calibration.patterns import (
+    from baumer_calib.patterns import (
         make_checkerboard_image,
         make_charuco_board_image,
     )
