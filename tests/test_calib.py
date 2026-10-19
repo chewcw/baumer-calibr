@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
 
-from baumer_calibration.calibrator import calibrate
-from baumer_calibration.models import CalibrationResult
-from baumer_calibration.patterns import detect, make_checkerboard_image
-from baumer_calibration.storage import load_yaml, save_yaml
+from baumer_calib.calibrator import calibrate
+from baumer_calib.models import CalibrationResult
+from baumer_calib.patterns import detect, make_checkerboard_image
+from baumer_calib.storage import load_yaml, save_yaml
 
 
 def _synth_views(n=12, seed=0):
@@ -58,7 +58,7 @@ def test_detect_rendered_checkerboard():
 
 def test_detect_rendered_charuco():
     # regression: legacy cv2.aruco.interpolateCornersCharuco removed in OpenCV 5
-    from baumer_calibration.patterns import make_charuco_board_image
+    from baumer_calib.patterns import make_charuco_board_image
 
     img = make_charuco_board_image(7, 5, 150, 0.75, "DICT_5X5_100")
     d = detect(img, "charuco", (7, 5), 30.0, 22.5)

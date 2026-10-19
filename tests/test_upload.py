@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from baumer_calibration.models import CalibrationResult
-from baumer_calibration.neo_camera import NeoCamera
+from baumer_calib.models import CalibrationResult
+from baumer_calib.neo_camera import NeoCamera
 
 
 class FakeFeat:
