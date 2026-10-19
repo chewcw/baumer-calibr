@@ -1,4 +1,5 @@
 """YAML sidecar: full calibration incl. all rvecs/tvecs (camera keeps best only)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,8 +18,12 @@ def save_yaml(res: CalibrationResult, path: str | Path) -> Path:
         "image_size": {"width": res.image_size[0], "height": res.image_size[1]},
         "rms_error": res.rms_error,
         "camera_matrix": np.asarray(res.camera_matrix, float).reshape(3, 3).tolist(),
-        "new_camera_matrix": np.asarray(res.new_camera_matrix, float).reshape(3, 3).tolist(),
-        "dist_coeffs_opencv_order_k1_k2_p1_p2_k3": [float(v) for v in np.ravel(res.dist_coeffs)[:5]],
+        "new_camera_matrix": np.asarray(res.new_camera_matrix, float)
+        .reshape(3, 3)
+        .tolist(),
+        "dist_coeffs_opencv_order_k1_k2_p1_p2_k3": [
+            float(v) for v in np.ravel(res.dist_coeffs)[:5]
+        ],
         "dist_coeffs_baumer_order": d,
         "rvec_best": [float(v) for v in np.ravel(res.rvec)[:3]],
         "tvec_best": [float(v) for v in np.ravel(res.tvec)[:3]],
@@ -41,7 +46,10 @@ def load_yaml(path: str | Path) -> CalibrationResult:
         camera_matrix=np.array(data["camera_matrix"], float),
         dist_coeffs=np.array(dist, float).reshape(-1)[:5],
         new_camera_matrix=np.array(data["new_camera_matrix"], float),
-        image_size=(int(data["image_size"]["width"]), int(data["image_size"]["height"])),
+        image_size=(
+            int(data["image_size"]["width"]),
+            int(data["image_size"]["height"]),
+        ),
         rms_error=float(data["rms_error"]),
         rvec=np.array(data["rvec_best"], float).reshape(3),
         tvec=np.array(data["tvec_best"], float).reshape(3),

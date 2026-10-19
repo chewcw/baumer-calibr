@@ -18,6 +18,7 @@ runners (and locally). Steps:
 Version precedence: --version arg > $BUILD_VERSION (set from git tag in CI)
 > project version from pyproject.toml.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,17 +50,24 @@ def run(cmd: list[str]) -> None:
 
 
 def os_tag() -> str:
-    return {"Linux": "linux", "Windows": "windows", "Darwin": "macos"}[platform.system()]
+    return {"Linux": "linux", "Windows": "windows", "Darwin": "macos"}[
+        platform.system()
+    ]
 
 
 def arch_tag() -> str:
     m = platform.machine().lower()
-    return {"amd64": "x86_64", "x86_64": "x86_64",
-            "aarch64": "arm64", "arm64": "arm64"}.get(m, m)
+    return {
+        "amd64": "x86_64",
+        "x86_64": "x86_64",
+        "aarch64": "arm64",
+        "arm64": "arm64",
+    }.get(m, m)
 
 
 def default_version() -> str:
     import tomllib
+
     try:
         return tomllib.loads(PYPROJECT.read_text())["project"]["version"]
     except Exception:
@@ -106,9 +114,11 @@ def ensure_neoapi() -> bool:
         return True
     wheel = extract_vendor_wheel()
     if wheel is None:
-        log(f"WARNING [{os_tag()}]: no vendor neoAPI wheel for this platform - "
+        log(
+            f"WARNING [{os_tag()}]: no vendor neoAPI wheel for this platform - "
             "building offline-only bundle (calibrate/make-board/verify-folder work; "
-            "capture/upload/read need Linux or Windows)")
+            "capture/upload/read need Linux or Windows)"
+        )
         return False
     run(installer(wheel))
     if importlib.util.find_spec("neoapi") is None:
@@ -123,13 +133,24 @@ def ensure_pyinstaller() -> None:
 
 def build(has_neoapi: bool) -> Path:
     exe = DIST / APP / (APP + (".exe" if os_tag() == "windows" else ""))
-    cmd = [sys.executable, "-m", "PyInstaller",
-           "--noconfirm", "--clean", "--onedir",
-           "--name", APP,
-           "--distpath", DIST,
-           "--workpath", BUILD / "pyinstaller",
-           "--specpath", BUILD,
-           "--paths", ROOT / "src"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "PyInstaller",
+        "--noconfirm",
+        "--clean",
+        "--onedir",
+        "--name",
+        APP,
+        "--distpath",
+        DIST,
+        "--workpath",
+        BUILD / "pyinstaller",
+        "--specpath",
+        BUILD,
+        "--paths",
+        ROOT / "src",
+    ]
     if has_neoapi:
         cmd += ["--collect-all", "neoapi"]
     cmd += [ROOT / "src" / "baumer_calibration" / "cli.py"]
@@ -141,8 +162,9 @@ def build(has_neoapi: bool) -> Path:
 
 def smoke_test(exe: Path) -> None:
     log(f"smoke test: {exe} --help")
-    subprocess.run([str(exe), "--help"], check=True, cwd=ROOT,
-                   stdout=subprocess.DEVNULL)
+    subprocess.run(
+        [str(exe), "--help"], check=True, cwd=ROOT, stdout=subprocess.DEVNULL
+    )
 
 
 def archive(version: str) -> Path:
@@ -151,8 +173,7 @@ def archive(version: str) -> Path:
         if stale.is_file() and stale.name.endswith((".zip", ".tar.gz", ".sha256")):
             stale.unlink()
     fmt = "zip" if os_tag() == "windows" else "gztar"
-    out = Path(shutil.make_archive(str(DIST / base), fmt,
-                                   root_dir=DIST, base_dir=APP))
+    out = Path(shutil.make_archive(str(DIST / base), fmt, root_dir=DIST, base_dir=APP))
     digest = hashlib.sha256()
     with out.open("rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -165,13 +186,18 @@ def archive(version: str) -> Path:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="build baumer-calib executable bundle")
-    ap.add_argument("--version", default=os.environ.get("BUILD_VERSION") or "",
-                    help="version tag (default: $BUILD_VERSION or pyproject)")
+    ap.add_argument(
+        "--version",
+        default=os.environ.get("BUILD_VERSION") or "",
+        help="version tag (default: $BUILD_VERSION or pyproject)",
+    )
     args = ap.parse_args()
     version = args.version or default_version()
 
-    log(f"building {APP} {version} for {os_tag()}/{arch_tag()} "
-        f"python {platform.python_version()}")
+    log(
+        f"building {APP} {version} for {os_tag()}/{arch_tag()} "
+        f"python {platform.python_version()}"
+    )
     shutil.rmtree(DIST, ignore_errors=True)
     has_neoapi = ensure_neoapi()
     ensure_pyinstaller()
@@ -184,4 +210,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

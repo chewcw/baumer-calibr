@@ -1,4 +1,5 @@
 """CLI: baumer-calib capture|calibrate|upload|verify|make-board|read"""
+
 from __future__ import annotations
 
 import argparse
@@ -12,21 +13,36 @@ import numpy as np
 def _cmd_capture(a) -> int:
     from baumer_calibration.neo_camera import NeoCamera
     from baumer_calibration.patterns import detect, parse_pattern_size
-    out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
     psize = parse_pattern_size(a.pattern_size)
     cam = NeoCamera().connect(a.serial or "")
     try:
         cam.setup_capture(a.pixel_format, a.exposure)
         saved = 0
-        print(f"aim {a.pattern} {a.pattern_size} at camera, [space]=save [q]=quit n={a.n}")
+        print(
+            f"aim {a.pattern} {a.pattern_size} at camera, [space]=save [q]=quit n={a.n}"
+        )
         while saved < a.n:
             frame = cam.grab_np()
             gray = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             det = detect(gray, a.pattern, psize, a.square, a.marker, a.aruco_dict)
             color = (0, 255, 0) if det.ok else (0, 0, 255)
-            vis = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR) if frame.ndim == 2 else frame.copy()
-            cv2.putText(vis, f"{saved}/{a.n} {det.info}", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+            vis = (
+                cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+                if frame.ndim == 2
+                else frame.copy()
+            )
+            cv2.putText(
+                vis,
+                f"{saved}/{a.n} {det.info}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                color,
+                2,
+            )
             if det.ok and det.image_points is not None:
                 cv2.drawChessboardCorners(vis, psize, det.image_points, True)
             cv2.imshow("baumer-calib capture", vis)
@@ -54,10 +70,13 @@ def _iter_images(folder: Path):
             img = cv2.imread(str(p), cv2.IMREAD_UNCHANGED)
             if img is not None:
                 yield p, img
+
+
 def _cmd_calibrate(a) -> int:
     from baumer_calibration.patterns import detect, parse_pattern_size
     from baumer_calibration.calibrator import calibrate
     from baumer_calibration.storage import save_yaml
+
     folder = Path(a.images)
     psize = parse_pattern_size(a.pattern_size)
     objp_list, imgp_list, size = [], [], None
@@ -88,6 +107,7 @@ def _cmd_calibrate(a) -> int:
 def _cmd_upload(a) -> int:
     from baumer_calibration.neo_camera import NeoCamera
     from baumer_calibration.storage import load_yaml
+
     res = load_yaml(a.calib)
     if a.focal:
         res.focal_length_mm = a.focal
@@ -95,8 +115,12 @@ def _cmd_upload(a) -> int:
         res.angular_aperture_deg = a.aperture
     cam = NeoCamera().connect(a.serial or "")
     try:
-        cam.upload(res, res.focal_length_mm, res.angular_aperture_deg,
-                   persist_userset=not a.no_userset)
+        cam.upload(
+            res,
+            res.focal_length_mm,
+            res.angular_aperture_deg,
+            persist_userset=not a.no_userset,
+        )
         print("uploaded K/newK/rvec/tvec/dist + metadata, saved to camera")
         return 0
     finally:
@@ -105,6 +129,7 @@ def _cmd_upload(a) -> int:
 
 def _cmd_read(a) -> int:
     from baumer_calibration.neo_camera import NeoCamera
+
     cam = NeoCamera().connect(a.serial or "")
     try:
         print("Camera Matrix:\n", cam.read_matrix("Camera Matrix"))
@@ -120,9 +145,12 @@ def _cmd_read(a) -> int:
         return 0
     finally:
         cam.disconnect()
+
+
 def _cmd_verify(a) -> int:
     from baumer_calibration.neo_camera import NeoCamera
     from baumer_calibration.storage import load_yaml
+
     res = load_yaml(a.calib)
     K = np.asarray(res.camera_matrix, float)
     dist = np.asarray(res.dist_coeffs, float)
@@ -134,7 +162,9 @@ def _cmd_verify(a) -> int:
             while True:
                 frame = cam.grab_np()
                 und = cv2.undistort(frame, K, dist, None, newK)
-                cv2.imshow("left=raw right=undistorted [q]=quit", np.hstack([frame, und]))
+                cv2.imshow(
+                    "left=raw right=undistorted [q]=quit", np.hstack([frame, und])
+                )
                 if cv2.waitKey(30) & 0xFF in (ord("q"), 27):
                     break
         finally:
@@ -150,7 +180,11 @@ def _cmd_verify(a) -> int:
 
 
 def _cmd_board(a) -> int:
-    from baumer_calibration.patterns import make_checkerboard_image, make_charuco_board_image
+    from baumer_calibration.patterns import (
+        make_checkerboard_image,
+        make_charuco_board_image,
+    )
+
     if a.pattern == "charuco":
         img = make_charuco_board_image(a.nx, a.ny, a.square_px, 0.75, a.aruco_dict)
     else:
@@ -161,14 +195,18 @@ def _cmd_board(a) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="baumer-calib",
-                                description="Calibrate Baumer camera, store in boCalibrationData")
+    p = argparse.ArgumentParser(
+        prog="baumer-calib",
+        description="Calibrate Baumer camera, store in boCalibrationData",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("capture", help="grab N pattern images from camera")
     c.add_argument("--out", default="shots")
     c.add_argument("-n", type=int, default=20)
-    c.add_argument("--pattern", choices=["checkerboard", "charuco"], default="checkerboard")
+    c.add_argument(
+        "--pattern", choices=["checkerboard", "charuco"], default="checkerboard"
+    )
     c.add_argument("--pattern-size", default="9x6")
     c.add_argument("--square", type=float, default=25.0)
     c.add_argument("--marker", type=float, default=0.0)
@@ -181,7 +219,9 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("calibrate", help="calibrate from image folder -> yaml")
     c.add_argument("images")
     c.add_argument("--out", default="calib.yaml")
-    c.add_argument("--pattern", choices=["checkerboard", "charuco"], default="checkerboard")
+    c.add_argument(
+        "--pattern", choices=["checkerboard", "charuco"], default="checkerboard"
+    )
     c.add_argument("--pattern-size", default="9x6")
     c.add_argument("--square", type=float, default=25.0)
     c.add_argument("--marker", type=float, default=0.0)

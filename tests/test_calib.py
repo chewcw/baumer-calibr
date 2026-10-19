@@ -59,6 +59,7 @@ def test_detect_rendered_checkerboard():
 def test_detect_rendered_charuco():
     # regression: legacy cv2.aruco.interpolateCornersCharuco removed in OpenCV 5
     from baumer_calibration.patterns import make_charuco_board_image
+
     img = make_charuco_board_image(7, 5, 150, 0.75, "DICT_5X5_100")
     d = detect(img, "charuco", (7, 5), 30.0, 22.5)
     assert d.ok and d.image_points is not None

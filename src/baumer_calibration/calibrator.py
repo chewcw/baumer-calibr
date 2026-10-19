@@ -3,6 +3,7 @@
 Selects the best view (lowest per-view reprojection error) for rvec/tvec
 storage in the camera; keeps all views in the YAML sidecar.
 """
+
 from __future__ import annotations
 
 import cv2
@@ -11,13 +12,19 @@ import numpy as np
 from baumer_calibration.models import CalibrationResult
 
 
-def calibrate(objpoints: list[np.ndarray], imgpoints: list[np.ndarray],
-              image_size: tuple[int, int], pattern: str = "",
-              square_size_mm: float = 0.0, alpha: float = 0.0) -> CalibrationResult:
+def calibrate(
+    objpoints: list[np.ndarray],
+    imgpoints: list[np.ndarray],
+    image_size: tuple[int, int],
+    pattern: str = "",
+    square_size_mm: float = 0.0,
+    alpha: float = 0.0,
+) -> CalibrationResult:
     if len(objpoints) < 3:
         raise ValueError(f"need >=3 valid views, got {len(objpoints)}")
     ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(
-        objpoints, imgpoints, image_size, None, None)
+        objpoints, imgpoints, image_size, None, None
+    )
     # per-view RMS (numpy to avoid OpenCV shape/type mismatch between
     # findChessboardCorners' (N,1,2) and projectPoints' (N,2) outputs)
     errors: list[float] = []

@@ -7,6 +7,7 @@ Baumer manual 11.19 mapping:
 - rvec/tvec (vec3)        <-> best-view pose; full per-view arrays kept in YAML only
 - focal_length_mm, angular_aperture_deg <-> manual metadata
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,13 +16,13 @@ import numpy as np
 
 @dataclass
 class CalibrationResult:
-    camera_matrix: np.ndarray          # 3x3
-    dist_coeffs: np.ndarray            # shape (5,) in OpenCV order (k1,k2,p1,p2,k3)
-    new_camera_matrix: np.ndarray      # 3x3
-    image_size: tuple[int, int]        # (w, h)
+    camera_matrix: np.ndarray  # 3x3
+    dist_coeffs: np.ndarray  # shape (5,) in OpenCV order (k1,k2,p1,p2,k3)
+    new_camera_matrix: np.ndarray  # 3x3
+    image_size: tuple[int, int]  # (w, h)
     rms_error: float
-    rvec: np.ndarray                   # shape (3,) best view
-    tvec: np.ndarray                   # shape (3,) best view
+    rvec: np.ndarray  # shape (3,) best view
+    tvec: np.ndarray  # shape (3,) best view
     rvecs_all: list[np.ndarray] = field(default_factory=list)
     tvecs_all: list[np.ndarray] = field(default_factory=list)
     per_view_errors: list[float] = field(default_factory=list)
