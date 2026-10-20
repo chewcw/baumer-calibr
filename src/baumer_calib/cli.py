@@ -39,7 +39,8 @@ def _to_gray(img: np.ndarray) -> np.ndarray:
 
 
 def _gray_to_bgr(gray: np.ndarray) -> np.ndarray:
-    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    g = _to_gray(gray)
+    return cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)
 
 
 def _cmd_capture(a) -> int:
