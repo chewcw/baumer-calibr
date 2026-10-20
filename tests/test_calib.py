@@ -31,7 +31,7 @@ def test_calibrate_recovers_known_K():
     assert np.abs(res.camera_matrix - K).max() < 1.0
     assert res.rvec.shape == (3,) and res.tvec.shape == (3,)
     assert len(res.rvecs_all) == 12 and len(res.tvecs_all) == 12
-    # bo order mapping
+    # Baumer-order mapping: k1,k2,k3,p1,p2 (not OpenCV k1,k2,p1,p2,k3)
     bo = res.dist_bo_order
     assert set(bo) == {"k1", "k2", "k3", "p1", "p2"}
 

@@ -4,8 +4,10 @@ Install first (wheel caps at cp3.13, so project pins python <3.14):
     untar vendor/Baumer_neoAPI_*_python.tar.gz, then pip install wheel/*.whl
     (NOT PyPI 'neoapi' - different vendor!)
 
-Manual 11.19 write flow (hypothesis: Matrix/Vector/Distortion values become
-writable with boCalibrationDataConfigurationMode=On; doc lists them RO):
+Baumer Users Guide §11.19 lists the matrix/vector/distortion values as read-only,
+but on hardware they accept writes once
+boCalibrationDataConfigurationMode=On. Write flow relies on that, and
+upload() surfaces a clear error if a write is still rejected:
     1. ConfigurationMode = On
     2. selectors + values, 3. boCalibrationDataSave, 4. mode Off
 """

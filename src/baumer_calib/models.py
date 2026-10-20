@@ -1,6 +1,7 @@
 """Shared data model: what calibrateCamera produces + what boCalibrationData stores.
 
-Baumer manual 11.19 mapping:
+Baumer Users Guide §11.19 mapping (distortion coefficients in Baumer selector order):
+- Camera Matrix (3x3)     <-> camera_matrix
 - Camera Matrix (3x3)     <-> camera_matrix
 - New Camera Matrix (3x3) <-> new_camera_matrix (cv2.getOptimalNewCameraMatrix)
 - k1,k2,k3,p1,p2          <-> dist_coeffs stored as (k1,k2,p1,p2,k3) in OpenCV order

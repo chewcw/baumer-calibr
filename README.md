@@ -4,8 +4,7 @@ Simple CLI to calibrate Baumer VCXx.2 / VCXU.2 cameras (OpenCV) and store the re
 `boCalibrationData` features (Users Guide §11.19), so downstream apps read `K + dist + rvec/tvec`
 from the camera itself instead of a sidecar YAML.
 
-> The camera does **not** calibrate itself. Per manual §11.19: *"Calibration must be performed using
-> external software"* — this tool is that external software (OpenCV), and the camera is the storage.
+> The camera does **not** calibrate itself (§11.19 says calibration requires external software); this tool provides that (OpenCV), and the camera stores the result.
 
 ## Install
 
