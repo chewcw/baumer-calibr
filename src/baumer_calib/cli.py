@@ -50,6 +50,12 @@ def _cmd_capture(a) -> int:
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     psize = parse_pattern_size(a.pattern_size)
+    try:
+        from baumer_calib import __version__
+
+        print(f"baumer-calib {__version__} cv2={cv2.__version__}", flush=True)
+    except Exception:
+        pass
     cam = NeoCamera().connect(a.device or "")
     try:
         cam.setup_capture(a.pixel_format, a.exposure)
