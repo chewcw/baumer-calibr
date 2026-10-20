@@ -69,9 +69,22 @@ def default_version() -> str:
     import tomllib
 
     try:
-        return tomllib.loads(PYPROJECT.read_text())["project"]["version"]
+        return tomllib.loads(PYPROJECT.read_text())["project"]["version"].strip()
     except Exception:
         return "0.0.0"
+
+
+def normalize_version(raw: str) -> str:
+    """Normalize tag/pyproject versions: strip whitespace + leading 'v'.
+
+    CI passes BUILD_VERSION from the git tag (e.g. 'v0.1.0') while
+    pyproject holds '0.1.0'; normalize both so archive names are stable
+    (baumer-calib-0.1.0-<os>-<arch>.*) regardless of source.
+    """
+    v = (raw or "").strip()
+    if len(v) > 1 and v[0] in ("v", "V") and v[1].isdigit():
+        v = v[1:].strip()
+    return v or default_version()
 
 
 def installer(*pkgs: Path | str) -> list[str]:
@@ -192,7 +205,7 @@ def main() -> int:
         help="version tag (default: $BUILD_VERSION or pyproject)",
     )
     args = ap.parse_args()
-    version = args.version or default_version()
+    version = normalize_version(args.version)
 
     log(
         f"building {APP} {version} for {os_tag()}/{arch_tag()} "

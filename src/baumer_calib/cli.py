@@ -11,24 +11,31 @@ import numpy as np
 
 
 def _to_gray(img: np.ndarray) -> np.ndarray:
-    """Normalize any camera/disk frame to 2D single-channel gray.
+    """Normalize any camera/disk frame to 2D uint8 single-channel gray.
 
     Baumer neoAPI Mono8 ``GetNPArray()`` returns ``(H, W, 1)`` (ndim==3,
     1 channel), not ``(H, W)``. The old ``img if img.ndim == 2 else
     cvtColor(BGR2GRAY)`` check sent that (H,W,1) frame into
     ``COLOR_BGR2GRAY`` (expects 3/4 channels) -> ``scn is 1`` crash.
     """
-    if img.ndim == 2:
-        return img
-    if img.ndim == 3:
-        c = img.shape[2]
+    a = np.asarray(img)
+    if a.ndim == 2:
+        gray = a
+    elif a.ndim == 3:
+        c = a.shape[2]
         if c == 1:
-            return np.ascontiguousarray(img[:, :, 0])
-        if c == 3:
-            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        if c == 4:
-            return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
-    raise ValueError(f"unsupported image shape {getattr(img, 'shape', None)}")
+            gray = np.ascontiguousarray(a[:, :, 0])
+        elif c == 3:
+            gray = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY)
+        elif c == 4:
+            gray = cv2.cvtColor(a, cv2.COLOR_BGRA2GRAY)
+        else:
+            raise ValueError(f"unsupported image shape {a.shape} dtype={a.dtype}")
+    else:
+        raise ValueError(f"unsupported image shape {a.shape} dtype={a.dtype}")
+    if gray.dtype != np.uint8:
+        gray = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    return np.ascontiguousarray(gray)
 
 
 def _gray_to_bgr(gray: np.ndarray) -> np.ndarray:
@@ -51,6 +58,11 @@ def _cmd_capture(a) -> int:
         )
         while saved < a.n:
             frame = cam.grab_np()
+            print(
+                f"[capture] frame shape={np.shape(frame)} "
+                f"dtype={np.asarray(frame).dtype} cv2={cv2.__version__}",
+                flush=True,
+            )
             gray = _to_gray(frame)
             det = detect(gray, a.pattern, psize, a.square, a.marker, a.aruco_dict)
             color = (0, 255, 0) if det.ok else (0, 0, 255)
@@ -218,10 +230,13 @@ def _cmd_board(a) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    from baumer_calib import __version__
+
     p = argparse.ArgumentParser(
         prog="baumer-calib",
         description="Calibrate Baumer camera, store in boCalibrationData",
     )
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("capture", help="grab N pattern images from camera")
@@ -287,8 +302,10 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return int(args.func(args))
-    except Exception as e:
-        print(f"error: {e}", file=sys.stderr)
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
         return 1
 
 

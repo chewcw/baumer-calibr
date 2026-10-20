@@ -23,10 +23,11 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          python-version: '3.11'
 
       - name: Install deps + run tests
         run: |
-          uv sync --extra dev
+          uv sync --python 3.11 --extra dev
           uv run pytest -q
 
       - name: Build executable bundle

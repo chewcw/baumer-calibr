@@ -7,4 +7,6 @@ software), so this tool is that external software and the camera stores the resu
 
 from baumer_calib.models import CalibrationResult
 
-__all__ = ["CalibrationResult"]
+__version__ = "0.1.1"
+
+__all__ = ["CalibrationResult", "__version__"]

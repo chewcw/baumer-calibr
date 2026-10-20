@@ -1,6 +1,6 @@
 [project]
 name = "baumer-calib"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simple CLI to calibrate Baumer VCXG.2/VCXU.2 cameras (OpenCV) and store results in boCalibrationData"
 readme = "README.md"
 authors = [
