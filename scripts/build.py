@@ -153,7 +153,7 @@ def build(has_neoapi: bool) -> Path:
     ]
     if has_neoapi:
         cmd += ["--collect-all", "neoapi"]
-    cmd += [ROOT / "src" / "baumer_calibration" / "cli.py"]
+    cmd += [ROOT / "src" / "baumer_calib" / "cli.py"]
     run(cmd)
     if not exe.is_file():
         raise SystemExit(f"expected binary missing: {exe}")
