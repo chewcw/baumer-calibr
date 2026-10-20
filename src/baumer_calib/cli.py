@@ -10,6 +10,31 @@ import cv2
 import numpy as np
 
 
+def _to_gray(img: np.ndarray) -> np.ndarray:
+    """Normalize any camera/disk frame to 2D single-channel gray.
+
+    Baumer neoAPI Mono8 ``GetNPArray()`` returns ``(H, W, 1)`` (ndim==3,
+    1 channel), not ``(H, W)``. The old ``img if img.ndim == 2 else
+    cvtColor(BGR2GRAY)`` check sent that (H,W,1) frame into
+    ``COLOR_BGR2GRAY`` (expects 3/4 channels) -> ``scn is 1`` crash.
+    """
+    if img.ndim == 2:
+        return img
+    if img.ndim == 3:
+        c = img.shape[2]
+        if c == 1:
+            return np.ascontiguousarray(img[:, :, 0])
+        if c == 3:
+            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if c == 4:
+            return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+    raise ValueError(f"unsupported image shape {getattr(img, 'shape', None)}")
+
+
+def _gray_to_bgr(gray: np.ndarray) -> np.ndarray:
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+
 def _cmd_capture(a) -> int:
     from baumer_calib.neo_camera import NeoCamera
     from baumer_calib.patterns import detect, parse_pattern_size
@@ -26,14 +51,10 @@ def _cmd_capture(a) -> int:
         )
         while saved < a.n:
             frame = cam.grab_np()
-            gray = frame if frame.ndim == 2 else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = _to_gray(frame)
             det = detect(gray, a.pattern, psize, a.square, a.marker, a.aruco_dict)
             color = (0, 255, 0) if det.ok else (0, 0, 255)
-            vis = (
-                cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-                if frame.ndim == 2
-                else frame.copy()
-            )
+            vis = _gray_to_bgr(gray)
             cv2.putText(
                 vis,
                 f"{saved}/{a.n} {det.info}",
@@ -82,7 +103,7 @@ def _cmd_calibrate(a) -> int:
     objp_list, imgp_list, size = [], [], None
     used, skipped = 0, 0
     for p, img in _iter_images(folder):
-        gray = img if img.ndim == 2 else cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = _to_gray(img)
         size = (gray.shape[1], gray.shape[0])
         det = detect(gray, a.pattern, psize, a.square, a.marker, a.aruco_dict)
         if det.ok:
@@ -161,9 +182,11 @@ def _cmd_verify(a) -> int:
             cam.setup_capture()
             while True:
                 frame = cam.grab_np()
-                und = cv2.undistort(frame, K, dist, None, newK)
+                gray = _to_gray(frame)
+                und = cv2.undistort(gray, K, dist, None, newK)
                 cv2.imshow(
-                    "left=raw right=undistorted [q]=quit", np.hstack([frame, und])
+                    "left=raw right=undistorted [q]=quit",
+                    np.hstack([_gray_to_bgr(gray), _gray_to_bgr(und)]),
                 )
                 if cv2.waitKey(30) & 0xFF in (ord("q"), 27):
                     break

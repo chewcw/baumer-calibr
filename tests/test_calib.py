@@ -67,6 +67,27 @@ def test_detect_rendered_charuco():
     assert d.object_points.shape[1] == 3
 
 
+def test_to_gray_handles_mono_hw1():
+    # regression: Baumer neoAPI Mono8 GetNPArray() -> (H,W,1); the old
+    # `frame if ndim==2 else cvtColor(BGR2GRAY)` crashed with
+    # "scn is 1" (OpenCV 5) on exactly this shape.
+    from baumer_calib.cli import _gray_to_bgr, _to_gray
+
+    h, w = 48, 64
+    mono_hw1 = np.zeros((h, w, 1), np.uint8)
+    mono_hw1[10:20, 10:20, 0] = 200
+    gray = _to_gray(mono_hw1)
+    assert gray.shape == (h, w) and gray.ndim == 2
+    # BGR + BGRA + plain 2D still work
+    assert _to_gray(np.zeros((h, w), np.uint8)).shape == (h, w)
+    assert _to_gray(np.zeros((h, w, 3), np.uint8)).shape == (h, w)
+    assert _to_gray(np.zeros((h, w, 4), np.uint8)).shape == (h, w)
+    assert _gray_to_bgr(gray).shape == (h, w, 3)
+    # detection consumes normalized gray without cvtColor crash
+    d = detect(gray, "checkerboard", (9, 6), 25.0)
+    assert not d.ok  # blank image: no corners, but no exception
+
+
 def test_dist_order_helpers():
     bo = {"k1": 0.1, "k2": -0.05, "k3": 0.01, "p1": 0.001, "p2": 0.002}
     v = CalibrationResult.dist_from_bo_order(bo)
