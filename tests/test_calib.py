@@ -88,6 +88,45 @@ def test_to_gray_handles_mono_hw1():
     assert not d.ok  # blank image: no corners, but no exception
 
 
+def test_async_detector_does_not_block_caller():
+    # regression: detect() runs inline in the capture loop, stalling the
+    # cv2.waitKey pump so the preview ignored keys. The worker must run on
+    # another thread and expose the last completed (frame, gray, det).
+    import threading
+    import time
+
+    from baumer_calib.cli import _AsyncPatternDetector
+    from baumer_calib.patterns import Detection
+
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_detect(gray):
+        started.set()
+        release.wait(2.0)
+        return Detection(
+            True, np.zeros((4, 1, 2), np.float32), np.zeros((4, 3), np.float32)
+        )
+
+    detector = _AsyncPatternDetector(slow_detect).start()
+    try:
+        frame = np.zeros((8, 8), np.uint8)
+        detector.submit(frame, frame)
+        assert started.wait(2.0)
+        # detection is still running: caller returned immediately with no result
+        assert detector.latest() is None
+        release.set()
+        deadline = time.time() + 2.0
+        while detector.latest() is None and time.time() < deadline:
+            time.sleep(0.01)
+        got = detector.latest()
+        assert got is not None
+        assert got[0] is frame and got[1] is frame and got[2].ok
+    finally:
+        release.set()
+        detector.stop()
+
+
 def test_dist_order_helpers():
     bo = {"k1": 0.1, "k2": -0.05, "k3": 0.01, "p1": 0.001, "p2": 0.002}
     v = CalibrationResult.dist_from_bo_order(bo)

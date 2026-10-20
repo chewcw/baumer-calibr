@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
 from pathlib import Path
 
 import cv2
@@ -43,6 +44,72 @@ def _gray_to_bgr(gray: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)
 
 
+class _AsyncPatternDetector:
+    """Run pattern detection off the UI thread.
+
+    ``findChessboardCorners``/``CharucoDetector`` can take hundreds of ms per
+    full-resolution frame. Running it inline stalled the loop that pumps
+    ``cv2.waitKey``, so the preview stopped handling keys. The worker only
+    ever processes the newest submitted frame; the main thread shows the last
+    completed result and stays free to read keys.
+    """
+
+    def __init__(self, detect_fn):
+        self._detect_fn = detect_fn
+        self._lock = threading.Lock()
+        self._pending: tuple | None = None
+        self._result: tuple | None = None
+        self._error: BaseException | None = None
+        self._wake = threading.Event()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run, name="pattern-detect", daemon=True
+        )
+
+    def start(self) -> "_AsyncPatternDetector":
+        self._thread.start()
+        return self
+
+    def submit(self, frame: np.ndarray, gray: np.ndarray) -> None:
+        with self._lock:
+            self._pending = (frame, gray)
+        self._wake.set()
+
+    def latest(self) -> tuple | None:
+        with self._lock:
+            err = self._error
+            result = self._result
+        if err is not None:
+            raise err
+        return result
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._wake.set()
+        self._thread.join(timeout=2.0)
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            self._wake.wait()
+            self._wake.clear()
+            if self._stop.is_set():
+                break
+            with self._lock:
+                item = self._pending
+                self._pending = None
+            if item is None:
+                continue
+            frame, gray = item
+            try:
+                det = self._detect_fn(gray)
+            except BaseException as e:
+                with self._lock:
+                    self._error = e
+                return
+            with self._lock:
+                self._result = (frame, gray, det)
+
+
 def _cmd_capture(a) -> int:
     from baumer_calib.neo_camera import NeoCamera
     from baumer_calib.patterns import detect, parse_pattern_size
@@ -63,37 +130,49 @@ def _cmd_capture(a) -> int:
         print(
             f"aim {a.pattern} {a.pattern_size} at camera, [space]=save [q]=quit n={a.n}"
         )
-        while saved < a.n:
-            frame = cam.grab_np()
-            print(
-                f"[capture] frame shape={np.shape(frame)} "
-                f"dtype={np.asarray(frame).dtype} cv2={cv2.__version__}",
-                flush=True,
-            )
-            gray = _to_gray(frame)
-            det = detect(gray, a.pattern, psize, a.square, a.marker, a.aruco_dict)
-            color = (0, 255, 0) if det.ok else (0, 0, 255)
-            vis = _gray_to_bgr(gray)
-            cv2.putText(
-                vis,
-                f"{saved}/{a.n} {det.info}",
-                (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                color,
-                2,
-            )
-            if det.ok and det.image_points is not None:
-                cv2.drawChessboardCorners(vis, psize, det.image_points, True)
-            cv2.imshow("baumer-calib capture", vis)
-            key = cv2.waitKey(30) & 0xFF
-            if key in (ord("q"), 27):
-                break
-            if key == ord(" ") and det.ok:
-                p = out / f"img_{saved:03d}.png"
-                cv2.imwrite(str(p), frame)
-                saved += 1
-                print(f"[{saved}/{a.n}] {p} {det.info}")
+        detector = _AsyncPatternDetector(
+            lambda g: detect(g, a.pattern, psize, a.square, a.marker, a.aruco_dict)
+        ).start()
+        try:
+            while saved < a.n:
+                frame = cam.grab_np()
+                print(
+                    f"[capture] frame shape={np.shape(frame)} "
+                    f"dtype={np.asarray(frame).dtype} cv2={cv2.__version__}",
+                    flush=True,
+                )
+                gray = _to_gray(frame)
+                detector.submit(frame, gray)
+                got = detector.latest()
+                if got is None:
+                    det_frame, vis_gray, det = frame, gray, None
+                else:
+                    det_frame, vis_gray, det = got
+                color = (0, 255, 0) if det is not None and det.ok else (0, 0, 255)
+                vis = _gray_to_bgr(vis_gray)
+                info = det.info if det is not None else "detecting..."
+                cv2.putText(
+                    vis,
+                    f"{saved}/{a.n} {info}",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    color,
+                    2,
+                )
+                if det is not None and det.ok and det.image_points is not None:
+                    cv2.drawChessboardCorners(vis, psize, det.image_points, True)
+                cv2.imshow("baumer-calib capture", vis)
+                key = cv2.waitKey(1) & 0xFF
+                if key in (ord("q"), 27):
+                    break
+                if key == ord(" ") and det is not None and det.ok:
+                    p = out / f"img_{saved:03d}.png"
+                    cv2.imwrite(str(p), det_frame)
+                    saved += 1
+                    print(f"[{saved}/{a.n}] {p} {det.info}")
+        finally:
+            detector.stop()
         print(f"saved {saved} -> {out}")
         return 0 if saved >= 3 else 2
     finally:
